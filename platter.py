@@ -85,14 +85,12 @@ echo 'Setting up virtualenv'
 "$py" "$DATA_DIR/virtualenv.py" "$1"
 VIRTUAL_ENV="$(cd "$1"; pwd)"
 
-INSTALL_ARGS=''
-if [ -f "$DATA_DIR/requirements.txt" ]; then
-  INSTALL_ARGS="$INSTALL_ARGS"\ -r\ "$DATA_DIR/requirements.txt"
-fi
+# Get unique names of all the wheels
+INSTALL_ARGS=$(cd "$DATA_DIR"; ls -1 *.whl | awk -F - '{ gsub("_", "-", $1); print $1 }' | uniq)
 
 echo "Installing %(name)s"
 "$VIRTUAL_ENV/bin/pip" install --pre --no-index \
-  --find-links "$DATA_DIR" wheel $INSTALL_ARGS %(pkg)s | grep -v '^$'
+  --find-links "$DATA_DIR" $INSTALL_ARGS | grep -v '^$'
 
 # Potential post installation
 cd "$HERE"
@@ -324,8 +322,6 @@ class Builder(object):
 
             if self.requirements is not None:
                 cmdline.extend(('-r', self.requirements))
-                shutil.copy2(self.requirements,
-                             os.path.join(data_dir, 'requirements.txt'))
 
             cmdline.append(self.path)
 
@@ -352,7 +348,6 @@ class Builder(object):
         with open(fn, 'w') as f:
             f.write((INSTALLER % dict(
                 name=pkginfo['ident'],
-                pkg=pkginfo['name'],
                 python=os.path.basename(self.python),
                 postinstall=postinstall,
             )).encode('utf-8'))
